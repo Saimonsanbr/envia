@@ -274,27 +274,39 @@ func (m appModel) View() string {
 		by := lipgloss.NewStyle().Faint(true).Render("by @indigena.dev")
 		top := lipgloss.JoinVertical(lipgloss.Center, header, sub, by)
 
-		boxStyle := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("212")).Padding(1, 2).Width(60)
+		// Box para arquivo/servidor/túnel (sem link para evitar quebra)
+		boxWidth := 60
+		if m.width > 0 && m.width < 62 {
+			boxWidth = m.width - 4
+			if boxWidth < 30 {
+				boxWidth = 30
+			}
+		}
+		boxStyle := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("212")).Padding(1, 2).Width(boxWidth)
 		provLabel := string(m.provider)
 		if m.provider == "" {
 			provLabel = "cloudflare"
 		}
-		content := fmt.Sprintf(
-			"%s\n%s\n\n%s\n  %s\n\n%s\n  %s\n\n%s\n  %s",
+		boxContent := fmt.Sprintf(
+			"%s\n%s\n\n%s\n  %s\n\n%s\n  %s",
 			lipgloss.NewStyle().Bold(true).Render("Arquivo"),
 			fmt.Sprintf("  %s  %s", m.fileName, lipgloss.NewStyle().Faint(true).Render(m.fileSize)),
 			lipgloss.NewStyle().Bold(true).Render("Servidor"),
 			"http://"+m.addr,
 			lipgloss.NewStyle().Bold(true).Render("Túnel"),
 			provLabel,
-			lipgloss.NewStyle().Bold(true).Render("Link público"),
-			lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true).Render(m.publicURL),
 		)
-		box := boxStyle.Render(content)
+		box := boxStyle.Render(boxContent)
+
+		// Link fora da box para não quebrar ao copiar em terminal estreito
+		linkLabel := lipgloss.NewStyle().Bold(true).Render("Link público")
+		// Sem Width fixo — deixa o link quebrar apenas visualmente (soft wrap), sem inserir \n no copy
+		linkStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true).Underline(true)
+		linkLine := linkStyle.Render(m.publicURL)
 
 		foot := lipgloss.NewStyle().Faint(true).Render("O arquivo continua no seu computador.\nNenhum upload foi feito para o envia.")
 		wait := lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Render("Aguardando downloads...  •  Ctrl+C para encerrar")
-		return lipgloss.JoinVertical(lipgloss.Left, top, "", box, "", foot, "", wait)
+		return lipgloss.JoinVertical(lipgloss.Left, top, "", box, "", linkLabel, linkLine, "", foot, "", wait)
 
 	case stateError:
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render(fmt.Sprintf("Erro: %v", m.err))
