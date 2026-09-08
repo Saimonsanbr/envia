@@ -64,19 +64,62 @@ arquivo → servidor local → túnel → navegador
 
 ## Instalação
 
-### 1. Binário `envia`
+> `envia` fica disponível em qualquer pasta depois de instalado — basta ter `~/.local/bin` no `PATH`. O `cloudflared` precisa estar instalado separado (veja abaixo).
 
-Por enquanto, compile localmente (releases pra Linux/Windows vêm em breve):
+### Via curl (recomendado — macOS/Linux)
+
+Instala o binário certo para seu sistema em `~/.local/bin/envia`:
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/Saimonsanbr/envia/main/install.sh | sh
+# com versão específica:
+curl -fsSL https://raw.githubusercontent.com/Saimonsanbr/envia/main/install.sh | sh -s -- v0.1.0
+# escolher pasta:
+INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/Saimonsanbr/envia/main/install.sh | sh
+```
+
+Se `~/.local/bin` não estiver no `PATH`, adicione:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
+# ou ~/.bashrc
+```
+
+### Via go install
+
+```bash
+go install github.com/Saimonsanbr/envia/cmd/envia@latest
+# binário vai para $(go env GOPATH)/bin/envia
+```
+
+### Via download direto (sem script)
+
+```bash
+# Linux amd64
+curl -L https://github.com/Saimonsanbr/envia/releases/latest/download/envia-linux-amd64 -o envia && chmod +x envia && sudo mv envia /usr/local/bin/
+# Linux arm64
+curl -L https://github.com/Saimonsanbr/envia/releases/latest/download/envia-linux-arm64 -o envia && chmod +x envia && sudo mv envia /usr/local/bin/
+# macOS arm64 (M1/M2)
+curl -L https://github.com/Saimonsanbr/envia/releases/latest/download/envia-darwin-arm64 -o envia && chmod +x envia && sudo mv envia /usr/local/bin/
+# macOS amd64 (Intel)
+curl -L https://github.com/Saimonsanbr/envia/releases/latest/download/envia-darwin-amd64 -o envia && chmod +x envia && sudo mv envia /usr/local/bin/
+# Windows (PowerShell)
+# Baixe https://github.com/Saimonsanbr/envia/releases/latest/download/envia-windows-amd64.exe
+```
+
+### Compilar do código
+
+```bash
+git clone https://github.com/Saimonsanbr/envia.git
+cd envia
 go build -trimpath -ldflags "-s -w" -o envia ./cmd/envia
 # ou
 make build  # gera bin/envia
 ```
 
-> Em breve: `curl -L https://github.com/Saimonsanbr/envia/releases/latest/download/envia-darwin-arm64` etc.
+### Provider de túnel (instalar separado)
 
-### 2. Provider de túnel
+O `envia` **não instala** `cloudflared`/`bore` — você instala uma vez:
 
 **Cloudflare (recomendado, padrão):**
 
