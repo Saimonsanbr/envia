@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>envia - {{.FileName}}</title>
+<link rel="stylesheet" href="/preview.css">
+</head>
+<body>
+  <header>
+    <h1>envia</h1>
+    <p class="subtitle">Compartilhado diretamente do computador</p>
+  </header>
+
+  <main class="card">
+    <div class="preview">
+      {{if eq .PreviewType "image"}}
+        <img src="/preview" alt="{{.FileName}}" loading="lazy">
+      {{else if eq .PreviewType "video"}}
+        <video controls preload="metadata" playsinline>
+          <source src="/preview" type="{{.MimeType}}">
+          Seu navegador não suporta vídeo.
+        </video>
+      {{else if eq .PreviewType "audio"}}
+        <div class="audio-wrap">
+          <div class="file-icon">🎵</div>
+          <audio controls preload="metadata">
+            <source src="/preview" type="{{.MimeType}}">
+            Seu navegador não suporta áudio.
+          </audio>
+        </div>
+      {{else if eq .PreviewType "pdf"}}
+        <iframe src="/preview" title="{{.FileName}}"></iframe>
+      {{else}}
+        <div class="generic">
+          <div class="file-icon">📄</div>
+          <p>Preview não disponível</p>
+        </div>
+      {{end}}
+    </div>
+
+    <div class="info">
+      <h2 class="filename" title="{{.FileName}}">{{.FileName}}</h2>
+      <p class="meta">{{.FileSize}} · {{.MimeType}}</p>
+    </div>
+
+    <a href="/download" class="btn" id="downloadBtn" download>Baixar arquivo</a>
+    <p class="hint">O arquivo é transmitido diretamente do computador de quem enviou.</p>
+  </main>
+
+  <footer>
+    <p>Compartilhado com <strong>envia</strong> v0.1.0 — sem upload para nuvem</p>
+  </footer>
+
+<script src="/app.js"></script>
+</body>
+</html>
