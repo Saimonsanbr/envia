@@ -68,12 +68,12 @@ arquivo → servidor local → túnel → navegador
 
 ### Via curl (recomendado — macOS/Linux)
 
-Instala o binário certo para seu sistema em `~/.local/bin/envia`:
+Instala o binário certo para seu sistema em `~/.local/bin/envia` (já com `bore` bundle):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Saimonsanbr/envia/main/install.sh | sh
 # com versão específica:
-curl -fsSL https://raw.githubusercontent.com/Saimonsanbr/envia/main/install.sh | sh -s -- v0.2.0
+curl -fsSL https://raw.githubusercontent.com/Saimonsanbr/envia/main/install.sh | sh -s -- v0.2.3
 # escolher pasta:
 INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/Saimonsanbr/envia/main/install.sh | sh
 ```
@@ -84,6 +84,37 @@ Se `~/.local/bin` não estiver no `PATH`, adicione:
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
 # ou ~/.bashrc
 ```
+
+### Via PowerShell (Windows — sem admin)
+
+> **Segurança:** este script é 100% auditável e open source (`https://github.com/Saimonsanbr/envia/blob/main/install.ps1`). Ele só baixa `envia.exe` e `bore.exe` das releases oficiais e move para `%LOCALAPPDATA%\Programs\envia`. Não confie em scripts de qualquer pessoa — sempre verifique a URL e o código antes de executar.
+
+Instala em `%LOCALAPPDATA%\Programs\envia` (sem precisar de admin) e adiciona ao `PATH` do usuário:
+
+```powershell
+# Opção 1 — direto (recomendado)
+iwr -useb https://raw.githubusercontent.com/Saimonsanbr/envia/main/install.ps1 | iex
+
+# Opção 2 — baixar, inspecionar e depois executar (mais seguro)
+iwr https://raw.githubusercontent.com/Saimonsanbr/envia/main/install.ps1 -OutFile install.ps1
+# abra install.ps1 no editor e verifique, depois:
+powershell -ExecutionPolicy Bypass -File install.ps1
+# ou com versão específica
+powershell -ExecutionPolicy Bypass -File install.ps1 -Version v0.2.3
+```
+
+Se o Windows bloquear por `ExecutionPolicy`:
+
+```powershell
+# Ver atual
+Get-ExecutionPolicy -Scope CurrentUser
+# Permitir scripts do seu usuário (sem admin, reversível)
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
+# Ou só para esta execução
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+O instalador já baixa o `bore.exe` bundle (`v0.6.0`, MIT) para a mesma pasta do `envia.exe`, então **não precisa `cargo install`** no Windows. Se o bundle falhar, o `envia` mostra o tutorial por OS.
 
 ### Via go install
 
