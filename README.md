@@ -1,6 +1,6 @@
-# envia v0.1.0
+# envia v0.2.0
 
-> **Compartilhe um arquivo sem nuvem — seu PC vira servidor temporário via Cloudflare Tunnel. Um comando, um link.**
+> **Compartilhe um arquivo sem nuvem — seu PC vira servidor temporário via bore. Um comando, um link.**
 
 [![Go Version](https://img.shields.io/badge/go-1.23+-00ADD8?logo=go)](https://go.dev)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/Saimonsanbr/envia)
@@ -15,19 +15,19 @@ Quem recebe só abre o link no navegador — sem cadastro, sem app, sem upload p
 
 ---
 
-## ⚠️ Aviso — projeto entusiasta em desenvolvimento
+## Aviso — projeto entusiasta em desenvolvimento
 
 O `envia` é um projeto **entusiasta, feito no tempo livre**. Ele funciona, mas ainda pode ter bugs, arestas e comportamentos inesperados — principalmente fora do ambiente onde foi testado.
 
 - **Testado apenas em macOS com Apple Silicon (M1)** até agora.
 - **Não testado ainda em Linux e Windows** — builds para essas plataformas estão no roadmap e devem sair nas próximas releases. Se você testar, conta pra gente como foi!
-- A ideia é manter tudo **simples, rápido e sem cadastro**, mas a v0.1.0 ainda é um MVP de um único arquivo por vez.
+- A ideia é manter tudo **simples, rápido e sem cadastro**, mas a v0.2.0 ainda é um MVP de um único arquivo por vez.
 
 Se encontrar algo estranho, abre uma issue. Toda ajuda é bem-vinda — e obrigado por testar tão cedo!
 
 ---
 
-## 📚 Sumário
+## Sumário
 
 - [O que é](#o-que-é)
 - [Instalação](#instalação)
@@ -73,7 +73,7 @@ Instala o binário certo para seu sistema em `~/.local/bin/envia`:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Saimonsanbr/envia/main/install.sh | sh
 # com versão específica:
-curl -fsSL https://raw.githubusercontent.com/Saimonsanbr/envia/main/install.sh | sh -s -- v0.1.0
+curl -fsSL https://raw.githubusercontent.com/Saimonsanbr/envia/main/install.sh | sh -s -- v0.2.0
 # escolher pasta:
 INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/Saimonsanbr/envia/main/install.sh | sh
 ```
@@ -231,7 +231,7 @@ Enquanto o spinner gira, você só vê “Criando link…” — o retry de DNS 
 > Segunda etapa, mais técnica mas ainda legível. Depois vamos expandir em `docs/`.
 
 **HTTP (`net/http` puro, sem frameworks):**
-- `127.0.0.1:0` → porta aleatória, nunca `0.0.0.0` na 0.1.0.
+- `127.0.0.1:0` → porta aleatória, nunca `0.0.0.0` na 0.2.0.
 - Endpoints: `GET /` (HTML), `GET /preview` (inline), `GET /download` (attachment), `GET /preview.css`, `GET /app.js`.
 - `http.ServeContent` com `os.Open` → não carrega 20GB na RAM, suporta `Range: bytes=...` (`206 Partial Content`) para seek e retomada.
 - Headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Accept-Ranges: bytes`.
@@ -261,7 +261,7 @@ A página é minimalista, responsiva e funciona no celular:
 - Imagens (`.jpg`, `.png`, `.webp` etc) com `<img>`
 - Vídeos (`.mp4`, `.webm`) com `<video controls>`
 - Áudios (`.mp3`, `.wav`) com `<audio controls>`
-- PDFs com `<iframe>`, outros com ícone `📄` + botão **Baixar arquivo**
+- PDFs com `<iframe>`, outros com ícone de arquivo + botão **Baixar arquivo**
 
 Tudo vem do binário — quem recebe não instala nada.
 
@@ -290,7 +290,7 @@ Futuras flags (`--config` expansível) vão usar o mesmo arquivo.
 
 > O `envia` **não armazena** seu arquivo. Não tem upload pra backend próprio.
 
-Mas o tráfego **passa pelo provider de túnel** (Cloudflare ou Bore) — ele pode ver o tráfego. O link é temporário e sem autenticação na v0.1.0: quem tiver a URL acessa o arquivo enquanto você deixar o `envia` rodando.
+Mas o tráfego **passa pelo provider de túnel** (Bore/Serveo) — ele pode ver o tráfego. O link é temporário e sem autenticação na v0.2.0: quem tiver a URL acessa o arquivo enquanto você deixar o `envia` rodando.
 
 Não coletamos nada: sem analytics, sem trackers, sem conta, sem histórico. A ferramenta é stateless.
 
@@ -325,13 +325,13 @@ Stack: Go 1.23+, `bubbletea` + `bubbles` + `lipgloss`, stdlib `net/http`, `embed
 
 ## Roadmap
 
-**v0.1.0 (atual):** 1 arquivo, preview, download, Range, Cloudflare+Bore, UI spinner, retry de DNS.
+**v0.1.0:** 1 arquivo, preview, download, Range, Cloudflare+Bore, UI spinner, retry de DNS.
 
-**v0.2:** múltiplos arquivos, ZIP automático, QR code, seleção múltipla.
+**v0.2.0 (atual):** bore como padrão instantâneo (bundle MIT), fallback serveo/localhost.run via ssh, link fora da box para copiar em terminal estreito, config `provider` avançado, validação 2.5s com retry rápido.
+
+**v0.3:** múltiplos arquivos, ZIP automático, QR code, seleção múltipla.
 
 **Futuro:** rendezvous server opcional, senha, expiração, P2P, providers extras.
-
-Releases para Linux/Windows virão via GitHub Actions assim que validarmos os builds.
 
 ---
 

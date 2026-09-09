@@ -13,7 +13,7 @@ import (
 	"envia/internal/tunnel"
 )
 
-const version = "v0.1.0"
+const version = "v0.2.0"
 
 func main() {
 	var (
