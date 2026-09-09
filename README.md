@@ -1,3 +1,5 @@
+![envia — Share a file without the cloud](envia.png)
+
 # envia v0.2.3
 
 > **Compartilhe um arquivo sem nuvem — seu PC vira servidor temporário via bore. Um comando, um link.**
