@@ -117,28 +117,49 @@ go build -trimpath -ldflags "-s -w" -o envia ./cmd/envia
 make build  # gera bin/envia
 ```
 
-### Provider de túnel (instalar separado)
+### Provider de túnel
 
-O `envia` **não instala** `cloudflared`/`bore` — você instala uma vez:
+O `envia` tenta ser **portable**: por padrão ele já inclui o binário `bore` pré-compilado (MIT, `third-party/bore/LICENSE`), então **normalmente você não precisa instalar nada manualmente**.
 
-**Bore (padrão atual — instantâneo, recomendado):**
+Se o binário bundle falhar por algum motivo, o `envia` mostra:
 
+```
+bore não encontrado. Instale:
+  macOS: brew install bore  ou  cargo install bore-cli
+  Linux: cargo install bore-cli
+  Windows: cargo install bore-cli  ou  baixe bore.exe em https://github.com/ekzhang/bore/releases
+  Tutorial: https://github.com/Saimonsanbr/envia#instalação
+```
+
+**Por que `bore` e `ssh` em vez de `cloudflared`?**
+Testamos `cloudflared` exaustivamente e deu vários problemas: `429 Too Many Requests` em rajadas, `DNS_PROBE_POSSIBLE` por propagação lenta de `*.trycloudflare.com` e health de `6s` que estourava. O `bore` (`bore.pub`) é instantâneo (2-4s), leve e sem conta; `serveo.net` e `localhost.run` via `ssh` são fallbacks `ssh -R` igualmente simples e sem rate limit agressivo. Por isso `auto` agora é `bore → serveo → localhost.run`, e `cloudflared` ficou só para `--provider cloudflare` (avançado, ex: quem tem domínio próprio e quer configurar `provider=cloudflare` no `config.json`).
+
+**Instalação manual por OS (só se o bundle falhar):**
+
+**macOS:**
 ```bash
-cargo install bore-cli
-# ou
 brew install bore
+# ou
+cargo install bore-cli
 bore --version
 ```
 
-**Cloudflare (fallback/alternativo):**
-
+**Linux:**
 ```bash
-brew install cloudflared
-# https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
-cloudflared --version
+cargo install bore-cli
+# precisa Rust: https://rustup.rs
+bore --version
 ```
 
-O modo `--provider auto` (padrão) agora tenta `bore` primeiro (praticamente instantâneo, 2-4s). Se `bore` não estiver instalado, tenta `cloudflare` como fallback. Use `--provider cloudflare` se preferir Cloudflare explicitamente. Outros similares como `serveo.net` (`ssh -R 80:localhost:PORT serveo.net`) e `localhost.run` podem ser adicionados como fallback futuro.
+**Windows:**
+```powershell
+cargo install bore-cli
+# ou baixe bore.exe em https://github.com/ekzhang/bore/releases/download/v0.6.0/bore-v0.6.0-x86_64-pc-windows-msvc.zip
+# descompacte e coloque bore.exe no PATH ou ao lado de envia.exe
+bore --version
+```
+
+O modo `--provider auto` (padrão) tenta `bore` 3× (sem health, instantâneo) → `serveo` → `localhost.run`. Se `bore` não estiver instalado *e* o bundle falhar, tenta `cloudflare` como último recurso. Use `--provider cloudflare`, `--provider serveo` ou `--provider localhost.run` explicitamente se quiser.
 
 ---
 

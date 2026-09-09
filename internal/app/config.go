@@ -9,7 +9,10 @@ import (
 
 // Config holds persistent settings.
 type Config struct {
-	ShowHidden bool `json:"show_hidden"`
+	ShowHidden bool   `json:"show_hidden"`
+	// Provider padrão quando --provider auto (vazio = bore). Avançado: "cloudflare" para usar cloudflared mesmo em auto.
+	// Permite que usuário com domínio próprio configure cloudflared como padrão editando o JSON.
+	Provider string `json:"provider,omitempty"`
 }
 
 func configPath() string {
@@ -99,10 +102,45 @@ func HandleConfigFlag(arg string) error {
 		}
 		fmt.Printf("envia config\n")
 		fmt.Printf("  ocultos: %v\n", c.ShowHidden)
+		fmt.Printf("  provider: %s\n", func() string {
+			if c.Provider == "" {
+				return "auto (bore)"
+			}
+			return c.Provider
+		}())
 		fmt.Printf("  caminho: %s\n", ConfigPath())
-		fmt.Printf("\nUso: envia --config ocultos  (alterna visibilidade)\n")
+		fmt.Printf("\nUso:\n")
+		fmt.Printf("  envia --config ocultos              # alterna .files\n")
+		fmt.Printf("  envia --config provider=cloudflare  # usa cloudflared em auto (avançado)\n")
+		fmt.Printf("  envia --config provider=bore        # volta para bore\n")
+		fmt.Printf("\nEdite o JSON diretamente para provider custom:\n")
+		fmt.Printf("  %s\n", ConfigPath())
 		return nil
 	default:
-		return fmt.Errorf("opção de config desconhecida: %s\nUse: --config ocultos ou --config show", arg)
+		// permite --config provider=cloudflare
+		if arg == "provider=cloudflare" || arg == "provider=auto" || arg == "provider=bore" || arg == "provider=serveo" || arg == "provider=localhost.run" {
+			parts := arg[len("provider="):]
+			c, err := LoadConfig()
+			if err != nil {
+				return err
+			}
+			if parts == "auto" {
+				c.Provider = ""
+			} else {
+				c.Provider = parts
+			}
+			if err := SaveConfig(c); err != nil {
+				return err
+			}
+			fmt.Printf("✓ provider padrão agora: %s\n", func() string {
+				if c.Provider == "" {
+					return "auto (bore)"
+				}
+				return c.Provider
+			}())
+			fmt.Printf("  (config salvo em %s)\n", ConfigPath())
+			return nil
+		}
+		return fmt.Errorf("opção de config desconhecida: %s\nUse: --config ocultos, --config provider=cloudflare, --config show", arg)
 	}
 }

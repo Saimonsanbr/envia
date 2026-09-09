@@ -22,7 +22,7 @@ func main() {
 		configFlag   string
 	)
 
-	flag.StringVar(&providerFlag, "provider", "auto", "provider de túnel: auto (bore, fallback cloudflare), cloudflare, bore")
+	flag.StringVar(&providerFlag, "provider", "auto", "provider de túnel: auto (bore → serveo → localhost.run), bore, serveo, localhost.run, cloudflare")
 	flag.StringVar(&configFlag, "config", "", "configuração: ocultos (alterna exibição de arquivos ocultos)")
 	flag.BoolVar(&showVersion, "version", false, "mostra versão")
 	flag.BoolVar(&showVersion, "v", false, "mostra versão (alias)")
@@ -80,13 +80,23 @@ func main() {
 
 	args := flag.Args()
 
-	// Validate provider
+	// Validate provider (inclui fallbacks ssh)
 	provider := tunnel.Provider(strings.ToLower(providerFlag))
 	switch provider {
-	case tunnel.ProviderAuto, tunnel.ProviderCloudflare, tunnel.ProviderBore:
+	case tunnel.ProviderAuto, tunnel.ProviderCloudflare, tunnel.ProviderBore, tunnel.ProviderServeo, tunnel.ProviderLocalhostRun:
 	default:
-		fmt.Fprintf(os.Stderr, "Erro: provider inválido: %s (use auto, cloudflare ou bore)\n", providerFlag)
+		fmt.Fprintf(os.Stderr, "Erro: provider inválido: %s (use auto, bore, serveo, localhost.run ou cloudflare)\n", providerFlag)
 		os.Exit(1)
+	}
+	// Se auto e config tem provider preferido (avançado), usa ele
+	if provider == tunnel.ProviderAuto {
+		if cfg, err := app.LoadConfig(); err == nil && cfg.Provider != "" {
+			p := tunnel.Provider(strings.ToLower(cfg.Provider))
+			switch p {
+			case tunnel.ProviderBore, tunnel.ProviderCloudflare, tunnel.ProviderServeo, tunnel.ProviderLocalhostRun:
+				provider = p
+			}
+		}
 	}
 
 	var fileArg string

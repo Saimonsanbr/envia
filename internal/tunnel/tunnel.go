@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -16,9 +18,11 @@ import (
 type Provider string
 
 const (
-	ProviderAuto       Provider = "auto"
-	ProviderCloudflare Provider = "cloudflare"
-	ProviderBore       Provider = "bore"
+	ProviderAuto         Provider = "auto"
+	ProviderCloudflare   Provider = "cloudflare"
+	ProviderBore         Provider = "bore"
+	ProviderServeo       Provider = "serveo"
+	ProviderLocalhostRun Provider = "localhost.run"
 )
 
 // Manager manages a tunnel process.
@@ -40,6 +44,8 @@ var (
 	cloudflareRegex = regexp.MustCompile(`https://[a-zA-Z0-9-]+\.trycloudflare\.com`)
 	// bore output contains "bore.pub:12345" - may have ansi codes
 	boreRegex = regexp.MustCompile(`bore\.pub:(\d+)`)
+	serveoRegex = regexp.MustCompile(`https://[a-zA-Z0-9-]+\.serveo\.net`)
+	localhostRunRegex = regexp.MustCompile(`https://[a-zA-Z0-9-]+\.lhr\.life`)
 	ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 )
 
@@ -63,6 +69,44 @@ func ParseBoreURL(text string) string {
 
 func stripAnsi(s string) string {
 	return ansiRegex.ReplaceAllString(s, "")
+}
+
+func findBore() (string, error) {
+	// 1. Tenta binário bundle ao lado do executável (para distribuição portable)
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		candidates := []string{
+			filepath.Join(dir, "bore"),
+			filepath.Join(dir, "bore.exe"),
+			filepath.Join(dir, "bin", "bore"),
+			filepath.Join(dir, "bin", "bore.exe"),
+			filepath.Join(dir, "..", "third-party", "bore", "bore-darwin-arm64"),
+			filepath.Join(dir, "..", "third-party", "bore", "bore-darwin-amd64"),
+			filepath.Join(dir, "..", "third-party", "bore", "bore-linux-amd64"),
+			filepath.Join(dir, "..", "third-party", "bore", "bore-linux-arm64"),
+		}
+		for _, c := range candidates {
+			if _, err := os.Stat(c); err == nil {
+				return c, nil
+			}
+		}
+		// tenta também third-party/bore/bore-* baseado no GOOS/GOARCH atual
+		// para dev, tenta bore no PATH como fallback
+	}
+	// 2. Tenta no PATH
+	if p, err := exec.LookPath("bore"); err == nil {
+		return p, nil
+	}
+	return "", fmt.Errorf("bore não encontrado")
+}
+
+func boreHelp() string {
+	return "bore não encontrado. Instale:\n" +
+		"  macOS: brew install bore  ou  cargo install bore-cli\n" +
+		"  Linux: cargo install bore-cli\n" +
+		"  Windows: cargo install bore-cli  ou  baixe bore.exe em https://github.com/ekzhang/bore/releases\n" +
+		"  Tutorial: https://github.com/Saimonsanbr/envia#instalação\n" +
+		"  Nota: normalmente não é necessário instalar manualmente, o envia já inclui o bore pré-compilado (MIT)."
 }
 
 // Start starts the tunnel and returns public URL. It blocks until URL is found or timeout/context cancels.
@@ -94,7 +138,8 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 			}
 			lastErr = err
 			if strings.Contains(err.Error(), "não encontrado") {
-				// bore não instalado, tenta cloudflare como último recurso
+				// bore não encontrado -> mostra tutorial e não tenta outros automaticamente
+				// mas tenta cloudflare se for fallback de instalação (raro)
 				break
 			}
 			select {
@@ -103,7 +148,30 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 				return "", ctx.Err()
 			}
 		}
-		// Se bore falhou por não estar instalado, tenta cloudflare como fallback
+		// Fallback ssh: serveo e localhost.run (sem bore, tenta ssh)
+		if lastErr != nil && !strings.Contains(lastErr.Error(), "não encontrado") {
+			// tenta serveo
+			if url, err := m.startServeo(ctx, cfg.Addr); err == nil {
+				m.provider = ProviderServeo
+				m.url = url
+				return url, nil
+			} else {
+				lastErr = err
+			}
+			// tenta localhost.run
+			if url, err := m.startLocalhostRun(ctx, cfg.Addr); err == nil {
+				m.provider = ProviderLocalhostRun
+				m.url = url
+				return url, nil
+			} else {
+				if lastErr == nil {
+					lastErr = err
+				} else {
+					lastErr = fmt.Errorf("%v; localhost.run: %v", lastErr, err)
+				}
+			}
+		}
+		// Se bore não encontrado, tenta cloudflare como último recurso (avançado)
 		if lastErr != nil && strings.Contains(lastErr.Error(), "não encontrado") {
 			for i := 0; i < 2; i++ {
 				url, err := m.startCloudflare(ctx, cfg.Addr)
@@ -123,7 +191,7 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 		if lastErr == nil {
 			lastErr = fmt.Errorf("bore não respondeu")
 		}
-		return "", fmt.Errorf("não foi possível criar túnel bore após 3 tentativas: %v\nInstale bore (cargo install bore-cli) ou use --provider cloudflare", lastErr)
+		return "", fmt.Errorf("não foi possível criar túnel bore após 3 tentativas: %v\nInstale bore (cargo install bore-cli) ou veja tutorial: https://github.com/Saimonsanbr/envia#instalação\nFallbacks serveo/localhost.run também falharam (precisam de ssh). Tente --provider cloudflare se tiver cloudflared.", lastErr)
 	}
 
 	if provider == ProviderCloudflare {
@@ -179,6 +247,26 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 			}
 		}
 		return "", fmt.Errorf("bore indisponível após 3 tentativas: %v", lastErr)
+	}
+
+	if provider == ProviderServeo {
+		url, err := m.startServeo(ctx, cfg.Addr)
+		if err != nil {
+			return "", err
+		}
+		m.provider = ProviderServeo
+		m.url = url
+		return url, nil
+	}
+
+	if provider == ProviderLocalhostRun {
+		url, err := m.startLocalhostRun(ctx, cfg.Addr)
+		if err != nil {
+			return "", err
+		}
+		m.provider = ProviderLocalhostRun
+		m.url = url
+		return url, nil
 	}
 
 	return "", fmt.Errorf("provider desconhecido: %s", provider)
@@ -322,17 +410,16 @@ func (m *Manager) startCloudflare(ctx context.Context, addr string) (string, err
 }
 
 func (m *Manager) startBore(ctx context.Context, addr string) (string, error) {
-	if _, err := exec.LookPath("bore"); err != nil {
-		return "", fmt.Errorf("bore não encontrado")
+	boreBin, err := findBore()
+	if err != nil {
+		return "", fmt.Errorf("%s", boreHelp())
 	}
-	// addr is 127.0.0.1:PORT, need just PORT
 	port := addr
 	if strings.Contains(addr, ":") {
 		parts := strings.Split(addr, ":")
 		port = parts[len(parts)-1]
 	}
-	// bore local PORT --to bore.pub
-	cmd := exec.CommandContext(ctx, "bore", "local", port, "--to", "bore.pub")
+	cmd := exec.CommandContext(ctx, boreBin, "local", port, "--to", "bore.pub")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return "", fmt.Errorf("falha ao criar stdout pipe: %w", err)
@@ -404,6 +491,170 @@ func (m *Manager) startBore(ctx context.Context, addr string) (string, error) {
 	case <-timer.C:
 		_ = m.Close()
 		return "", fmt.Errorf("timeout ao aguardar URL do bore (12s)")
+	case <-ctx.Done():
+		_ = m.Close()
+		return "", ctx.Err()
+	}
+}
+
+func (m *Manager) startServeo(ctx context.Context, addr string) (string, error) {
+	if _, err := exec.LookPath("ssh"); err != nil {
+		return "", fmt.Errorf("ssh não encontrado (necessário para serveo)")
+	}
+	port := addr
+	if strings.Contains(addr, ":") {
+		parts := strings.Split(addr, ":")
+		port = parts[len(parts)-1]
+	}
+	// ssh -R 80:localhost:PORT serveo.net
+	cmd := exec.CommandContext(ctx, "ssh", "-o", "StrictHostKeyChecking=no", "-o", "ServerAliveInterval=60", "-R", "80:localhost:"+port, "serveo.net")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", fmt.Errorf("falha ao criar stdout pipe: %w", err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return "", fmt.Errorf("falha ao criar stderr pipe: %w", err)
+	}
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("falha ao iniciar serveo: %w", err)
+	}
+	m.cmd = cmd
+	urlCh := make(chan string, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		go func() {
+			scanner := bufio.NewScanner(stdout)
+			buf := make([]byte, 0, 64*1024)
+			scanner.Buffer(buf, 1024*1024)
+			for scanner.Scan() {
+				line := scanner.Text()
+				clean := stripAnsi(line)
+				if u := serveoRegex.FindString(clean); u != "" {
+					select {
+					case urlCh <- u:
+					default:
+					}
+					return
+				}
+			}
+		}()
+		scanner := bufio.NewScanner(stderr)
+		buf := make([]byte, 0, 64*1024)
+		scanner.Buffer(buf, 1024*1024)
+		for scanner.Scan() {
+			line := scanner.Text()
+			clean := stripAnsi(line)
+			if u := serveoRegex.FindString(clean); u != "" {
+				select {
+				case urlCh <- u:
+				default:
+				}
+				return
+			}
+		}
+	}()
+	go func() {
+		err := cmd.Wait()
+		select {
+		case errCh <- fmt.Errorf("serveo encerrou sem gerar URL: %w", err):
+		default:
+		}
+	}()
+	timeout := 15 * time.Second
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case u := <-urlCh:
+		return u, nil
+	case err := <-errCh:
+		_ = m.Close()
+		return "", err
+	case <-timer.C:
+		_ = m.Close()
+		return "", fmt.Errorf("timeout ao aguardar URL do serveo (15s)")
+	case <-ctx.Done():
+		_ = m.Close()
+		return "", ctx.Err()
+	}
+}
+
+func (m *Manager) startLocalhostRun(ctx context.Context, addr string) (string, error) {
+	if _, err := exec.LookPath("ssh"); err != nil {
+		return "", fmt.Errorf("ssh não encontrado (necessário para localhost.run)")
+	}
+	port := addr
+	if strings.Contains(addr, ":") {
+		parts := strings.Split(addr, ":")
+		port = parts[len(parts)-1]
+	}
+	// ssh -R 80:localhost:PORT nokey@localhost.run
+	cmd := exec.CommandContext(ctx, "ssh", "-o", "StrictHostKeyChecking=no", "-R", "80:localhost:"+port, "nokey@localhost.run")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", fmt.Errorf("falha ao criar stdout pipe: %w", err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return "", fmt.Errorf("falha ao criar stderr pipe: %w", err)
+	}
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("falha ao iniciar localhost.run: %w", err)
+	}
+	m.cmd = cmd
+	urlCh := make(chan string, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		go func() {
+			scanner := bufio.NewScanner(stdout)
+			buf := make([]byte, 0, 64*1024)
+			scanner.Buffer(buf, 1024*1024)
+			for scanner.Scan() {
+				line := scanner.Text()
+				clean := stripAnsi(line)
+				if u := localhostRunRegex.FindString(clean); u != "" {
+					select {
+					case urlCh <- u:
+					default:
+					}
+					return
+				}
+			}
+		}()
+		scanner := bufio.NewScanner(stderr)
+		buf := make([]byte, 0, 64*1024)
+		scanner.Buffer(buf, 1024*1024)
+		for scanner.Scan() {
+			line := scanner.Text()
+			clean := stripAnsi(line)
+			if u := localhostRunRegex.FindString(clean); u != "" {
+				select {
+				case urlCh <- u:
+				default:
+				}
+				return
+			}
+		}
+	}()
+	go func() {
+		err := cmd.Wait()
+		select {
+		case errCh <- fmt.Errorf("localhost.run encerrou sem gerar URL: %w", err):
+		default:
+		}
+	}()
+	timeout := 15 * time.Second
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case u := <-urlCh:
+		return u, nil
+	case err := <-errCh:
+		_ = m.Close()
+		return "", err
+	case <-timer.C:
+		_ = m.Close()
+		return "", fmt.Errorf("timeout ao aguardar URL do localhost.run (15s)")
 	case <-ctx.Done():
 		_ = m.Close()
 		return "", ctx.Err()
