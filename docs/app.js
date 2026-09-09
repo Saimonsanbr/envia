@@ -2,6 +2,7 @@
 const nav = document.getElementById('nav');
 const content = document.getElementById('content');
 const themeToggle = document.getElementById('theme-toggle');
+const langToggle = document.getElementById('lang-toggle');
 const menuBtn = document.getElementById('menu-btn');
 const sidebar = document.getElementById('sidebar');
 const overlay = document.getElementById('overlay');
@@ -18,6 +19,53 @@ function setTheme(t) {
 setTheme(getTheme());
 themeToggle.addEventListener('click', () => {
   setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+});
+
+// Idioma
+function getLang() {
+  return localStorage.getItem('envia-lang') || (navigator.language.startsWith('en') ? 'en' : 'pt');
+}
+function setLang(l) {
+  localStorage.setItem('envia-lang', l);
+  document.documentElement.setAttribute('lang', l === 'en' ? 'en' : 'pt-BR');
+  langToggle.textContent = l === 'en' ? 'PT' : 'EN';
+  // Atualiza nav data-md para apontar para pasta correta
+  nav.querySelectorAll('a[data-md]').forEach(a => {
+    const base = a.dataset.md.replace(/^content\/en\//, 'content/').replace(/^content\//, '');
+    // base é ex: introducao.md, instalacao.md
+    // Mas precisamos do path completo: content/introducao.md vs content/en/introducao.md
+    // O dataset original guarda sem prefixo? Vamos guardar o base sem lang
+    const raw = a.getAttribute('data-md-raw') || a.dataset.md;
+    if (!a.hasAttribute('data-md-raw')) a.setAttribute('data-md-raw', raw.replace(/^content\/en\//, '').replace(/^content\//, ''));
+    const rawBase = a.getAttribute('data-md-raw');
+    a.dataset.md = (l === 'en' ? 'content/en/' : 'content/') + rawBase;
+  });
+  // Atualiza brand link
+  const brandLink = document.querySelector('.brand a');
+  if (brandLink) {
+    const rawBrand = brandLink.getAttribute('data-md-raw') || brandLink.dataset.md;
+    if (!brandLink.hasAttribute('data-md-raw')) brandLink.setAttribute('data-md-raw', rawBrand.replace(/^content\/en\//, '').replace(/^content\//, ''));
+    const rawBaseBrand = brandLink.getAttribute('data-md-raw');
+    brandLink.dataset.md = (l === 'en' ? 'content/en/' : 'content/') + rawBaseBrand;
+  }
+}
+setLang(getLang());
+langToggle.addEventListener('click', () => {
+  const next = getLang() === 'en' ? 'pt' : 'en';
+  setLang(next);
+  // Recarrega o conteúdo atual no novo idioma
+  const h = location.hash.slice(1);
+  let base = 'introducao.md';
+  if (h && h.endsWith('.md')) {
+    base = h.replace(/^content\/en\//, '').replace(/^content\//, '');
+  } else {
+    // pega do nav ativo
+    const active = nav.querySelector('a.active');
+    if (active) base = active.getAttribute('data-md-raw') || active.dataset.md.replace(/^content\/en\//, '').replace(/^content\//, '');
+  }
+  const newPath = (next === 'en' ? 'content/en/' : 'content/') + base;
+  history.pushState(null, '', '#' + newPath);
+  loadMD(newPath);
 });
 
 // Menu mobile
@@ -58,19 +106,23 @@ nav.addEventListener('click', (e) => {
   loadMD(md);
 });
 
-// Roteamento por hash
+// Roteamento por hash - respeita idioma
 function fromHash() {
   const h = location.hash.slice(1);
   if (h && h.endsWith('.md')) return h;
-  return 'content/introducao.md';
+  const lang = getLang();
+  return (lang === 'en' ? 'content/en/introducao.md' : 'content/introducao.md');
 }
 window.addEventListener('popstate', () => loadMD(fromHash()));
-// Carga inicial
+// Carga inicial - garante que nav está no idioma correto
+// O setLang já atualizou os data-md, então fromHash agora retorna o correto
 loadMD(fromHash());
 
-// Marca brand também carrega intro
+// Marca brand também carrega intro no idioma atual
 document.querySelector('.brand a').addEventListener('click', (e) => {
   e.preventDefault();
-  history.pushState(null, '', '#content/introducao.md');
-  loadMD('content/introducao.md');
+  const lang = getLang();
+  const path = lang === 'en' ? 'content/en/introducao.md' : 'content/introducao.md';
+  history.pushState(null, '', '#' + path);
+  loadMD(path);
 });

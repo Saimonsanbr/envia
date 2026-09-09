@@ -85,7 +85,6 @@ a:hover { color: var(--accent-2); text-decoration: underline; }
   border-radius: 6px;
 }
 #theme-toggle {
-  margin-left: auto;
   background: var(--border);
   border: 1px solid var(--border);
   color: var(--text);
@@ -93,6 +92,18 @@ a:hover { color: var(--accent-2); text-decoration: underline; }
   height: 28px;
   border-radius: 8px;
   cursor: pointer;
+}
+#lang-toggle {
+  margin-left: auto;
+  background: var(--border);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0 8px;
+  height: 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
 }
 #nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 #nav a {
