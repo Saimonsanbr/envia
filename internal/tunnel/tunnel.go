@@ -72,7 +72,7 @@ func (m *Manager) Start(ctx context.Context, cfg Config) (string, error) {
 }
 
 // StartWithRetry starts tunnel with health validation and quick retries.
-// For auto: 3 tentativas cloudflare (health check 6s cada) depois fallback bore.
+// Para auto: 3 tentativas cloudflare (health 2.2s cada) depois fallback bore.
 // Para cloudflare explícito: 3 tentativas. Timeouts curtos pois retry subsequente já resolve DNS.
 func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error) {
 	provider := cfg.Provider
@@ -82,7 +82,7 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 
 	if provider == ProviderAuto {
 		var lastErr error
-		for i := 0; i < 5; i++ {
+		for i := 0; i < 3; i++ {
 			if ctx.Err() != nil {
 				return "", ctx.Err()
 			}
@@ -93,7 +93,7 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 					break
 				}
 				select {
-				case <-time.After(400 * time.Millisecond):
+				case <-time.After(100 * time.Millisecond):
 				case <-ctx.Done():
 					return "", ctx.Err()
 				}
@@ -107,7 +107,7 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 				lastErr = err
 				_ = m.Close()
 				select {
-				case <-time.After(400 * time.Millisecond):
+				case <-time.After(100 * time.Millisecond):
 				case <-ctx.Done():
 					return "", ctx.Err()
 				}
@@ -117,23 +117,19 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 		if ctx.Err() != nil {
 			return "", ctx.Err()
 		}
-		// fallback bore (uma tentativa com health)
+		// fallback bore (sem health, bore é rápido)
 		url2, err2 := m.startBore(ctx, cfg.Addr)
 		if err2 == nil {
 			m.provider = ProviderBore
 			m.url = url2
-			if err := waitHealthy(ctx, url2); err == nil {
-				return url2, nil
-			}
-			_ = m.Close()
-			return "", fmt.Errorf("bore também não ficou acessível: %v (cloudflare: %v)", err2, lastErr)
+			return url2, nil
 		}
 		return "", fmt.Errorf("não foi possível criar um túnel público.\nVerifique se cloudflared ou bore está instalado e se sua conexão com a internet está funcionando: %v; bore: %v", lastErr, err2)
 	}
 
 	if provider == ProviderCloudflare {
 		var lastErr error
-		for i := 0; i < 5; i++ {
+		for i := 0; i < 3; i++ {
 			if ctx.Err() != nil {
 				return "", ctx.Err()
 			}
@@ -141,7 +137,7 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 			if err != nil {
 				lastErr = err
 				select {
-				case <-time.After(400 * time.Millisecond):
+				case <-time.After(100 * time.Millisecond):
 				case <-ctx.Done():
 					return "", ctx.Err()
 				}
@@ -155,13 +151,13 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 				lastErr = err
 				_ = m.Close()
 				select {
-				case <-time.After(400 * time.Millisecond):
+				case <-time.After(100 * time.Millisecond):
 				case <-ctx.Done():
 					return "", ctx.Err()
 				}
 			}
 		}
-		return "", fmt.Errorf("cloudflare indisponível após 5 tentativas: %v", lastErr)
+		return "", fmt.Errorf("cloudflare indisponível após 3 tentativas: %v", lastErr)
 	}
 
 	if provider == ProviderBore {
@@ -171,10 +167,6 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 		}
 		m.provider = ProviderBore
 		m.url = url
-		if err := waitHealthy(ctx, url); err != nil {
-			_ = m.Close()
-			return "", fmt.Errorf("bore não ficou acessível: %w", err)
-		}
 		return url, nil
 	}
 
@@ -182,14 +174,14 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 }
 
 func waitHealthy(ctx context.Context, publicURL string) error {
-	client := &http.Client{Timeout: 3 * time.Second}
-	deadline := time.Now().Add(4 * time.Second)
+	client := &http.Client{Timeout: 1500 * time.Millisecond}
+	deadline := time.Now().Add(4000 * time.Millisecond)
 	target := publicURL
 	if !strings.HasSuffix(target, "/") {
 		target += "/"
 	}
 	for time.Now().Before(deadline) {
-		if ctx.Err() != nil {
+			if ctx.Err() != nil {
 			return ctx.Err()
 		}
 		req, err := http.NewRequestWithContext(context.Background(), "GET", target, nil)
@@ -201,16 +193,16 @@ func waitHealthy(ctx context.Context, publicURL string) error {
 			io.Copy(io.Discard, resp.Body)
 			resp.Body.Close()
 			if resp.StatusCode < 500 {
-				return nil
+					return nil
 			}
 		}
 		select {
-		case <-time.After(500 * time.Millisecond):
+		case <-time.After(200 * time.Millisecond):
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
-	return fmt.Errorf("health check falhou para %s", publicURL)
+return fmt.Errorf("health check falhou para %s", publicURL)
 }
 
 func (m *Manager) startCloudflare(ctx context.Context, addr string) (string, error) {
@@ -299,7 +291,7 @@ func (m *Manager) startCloudflare(ctx context.Context, addr string) (string, err
 		}
 	}()
 
-	timeout := 20 * time.Second
+	timeout := 15 * time.Second
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
@@ -311,7 +303,7 @@ func (m *Manager) startCloudflare(ctx context.Context, addr string) (string, err
 		return "", err
 	case <-timer.C:
 		_ = m.Close()
-		return "", fmt.Errorf("timeout ao aguardar URL do cloudflared (20s)")
+		return "", fmt.Errorf("timeout ao aguardar URL do cloudflared (15s)")
 	case <-ctx.Done():
 		_ = m.Close()
 		return "", ctx.Err()
@@ -388,7 +380,7 @@ func (m *Manager) startBore(ctx context.Context, addr string) (string, error) {
 		}
 	}()
 
-	timeout := 15 * time.Second
+	timeout := 12 * time.Second
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
@@ -400,7 +392,7 @@ func (m *Manager) startBore(ctx context.Context, addr string) (string, error) {
 		return "", err
 	case <-timer.C:
 		_ = m.Close()
-		return "", fmt.Errorf("timeout ao aguardar URL do bore (15s)")
+		return "", fmt.Errorf("timeout ao aguardar URL do bore (12s)")
 	case <-ctx.Done():
 		_ = m.Close()
 		return "", ctx.Err()
