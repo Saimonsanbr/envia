@@ -135,6 +135,24 @@ header h1 {
 .btn:hover { background: var(--accent-hover); }
 .btn:active { transform: scale(0.98); }
 
+.qr {
+  text-align: center;
+  padding: 16px 24px 0 24px;
+}
+.qr p {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.qr img {
+  width: 180px;
+  height: 180px;
+  border: 8px solid white;
+  border-radius: 12px;
+  background: white;
+  image-rendering: pixelated;
+}
+
 .hint {
   text-align: center;
   color: var(--muted);

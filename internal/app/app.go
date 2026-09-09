@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"envia/internal/httpserver"
+	"envia/internal/qr"
 	"envia/internal/tunnel"
 )
 
@@ -45,10 +46,9 @@ func Run(ctx context.Context, filePath string, provider tunnel.Provider, webFS f
 	fmt.Printf("\nArquivo\n  %s\n  %s\n\n", filepath.Base(abs), humanSize(info.Size()))
 	fmt.Printf("Servidor\n  http://%s\n\n", addr)
 
-	// Show tunnel provider name
 	provName := string(provider)
 	if provider == tunnel.ProviderAuto {
-		provName = "auto (cloudflare → bore)"
+		provName = "auto (bore → serveo → lhr)"
 	}
 	fmt.Printf("Túnel\n  %s\n\n", provName)
 	fmt.Printf("Criando link...\n")
@@ -60,6 +60,10 @@ func Run(ctx context.Context, filePath string, provider tunnel.Provider, webFS f
 	defer mgr.Close()
 
 	fmt.Printf("\nLink público\n  %s\n\n", publicURL)
+	// QR code rápido (<5ms) abaixo do link
+	if ascii := qr.GenerateASCII(publicURL); ascii != "" {
+		fmt.Printf("QR code — escaneie no celular:\n%s\n", ascii)
+	}
 	fmt.Printf("O arquivo continua no seu computador.\nNenhum upload foi feito para o envia.\n\n")
 	fmt.Printf("Aguardando downloads...\n\n")
 	fmt.Printf("Pressione Ctrl+C para encerrar.\n")

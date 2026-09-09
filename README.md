@@ -1,4 +1,4 @@
-# envia v0.2.0
+# envia v0.2.1
 
 > **Compartilhe um arquivo sem nuvem — seu PC vira servidor temporário via bore. Um comando, um link.**
 

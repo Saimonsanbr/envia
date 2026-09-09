@@ -14,6 +14,7 @@ import (
 	"github.com/mattn/go-isatty"
 
 	"envia/internal/httpserver"
+	"envia/internal/qr"
 	"envia/internal/tunnel"
 )
 
@@ -35,6 +36,7 @@ type appModel struct {
 	fileSize  string
 	addr      string
 	publicURL string
+	qrASCII   string
 	provider  tunnel.Provider
 	webFS     fs.FS
 	ctx       context.Context
@@ -216,6 +218,10 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.provider != "" {
 			m.provider = msg.provider
 		}
+		// Gera QR rápido (<5ms) e cacheia
+		if m.publicURL != "" {
+			m.qrASCII = qr.GenerateASCII(m.publicURL)
+		}
 		m.state = stateReady
 		return m, nil
 
@@ -238,7 +244,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m appModel) View() string {
 	switch m.state {
 	case statePicking:
-		header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Render("envia v0.1.0")
+		header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Render("envia v0.2.1")
 		sub := lipgloss.NewStyle().Faint(true).Render("Compartilhe um arquivo diretamente do seu computador.")
 		by := lipgloss.NewStyle().Faint(true).Render("by @indigena.dev")
 		top := lipgloss.JoinVertical(lipgloss.Center, header, sub, by)
@@ -247,7 +253,7 @@ func (m appModel) View() string {
 
 	case stateLoading:
 		// Header same as picking for consistency
-		header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Render("envia v0.1.0")
+		header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Render("envia v0.2.1")
 		sub := lipgloss.NewStyle().Faint(true).Render("Compartilhe um arquivo diretamente do seu computador.")
 		by := lipgloss.NewStyle().Faint(true).Render("by @indigena.dev")
 		top := lipgloss.JoinVertical(lipgloss.Center, header, sub, by)
@@ -269,7 +275,7 @@ func (m appModel) View() string {
 		return lipgloss.JoinVertical(lipgloss.Left, top, "", fileBox, "", loading, hint)
 
 	case stateReady:
-		header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Render("envia v0.1.0")
+		header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Render("envia v0.2.1")
 		sub := lipgloss.NewStyle().Faint(true).Render("Compartilhe um arquivo diretamente do seu computador.")
 		by := lipgloss.NewStyle().Faint(true).Render("by @indigena.dev")
 		top := lipgloss.JoinVertical(lipgloss.Center, header, sub, by)
@@ -300,12 +306,23 @@ func (m appModel) View() string {
 
 		// Link fora da box para não quebrar ao copiar em terminal estreito
 		linkLabel := lipgloss.NewStyle().Bold(true).Render("Link público")
-		// Sem Width fixo — deixa o link quebrar apenas visualmente (soft wrap), sem inserir \n no copy
 		linkStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true).Underline(true)
 		linkLine := linkStyle.Render(m.publicURL)
+		// QR code cacheado (gerado em Update, <5ms) abaixo do link
+		qrBlock := ""
+		if m.qrASCII != "" {
+			qrStyle := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("240")).Padding(0, 1)
+			if m.width == 0 || m.width >= 50 {
+				qrBlock = qrStyle.Render(m.qrASCII)
+			}
+		}
+		qrLabel := lipgloss.NewStyle().Faint(true).Render("QR code — escaneie no celular:")
 
 		foot := lipgloss.NewStyle().Faint(true).Render("O arquivo continua no seu computador.\nNenhum upload foi feito para o envia.")
 		wait := lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Render("Aguardando downloads...  •  Ctrl+C para encerrar")
+		if qrBlock != "" {
+			return lipgloss.JoinVertical(lipgloss.Left, top, "", box, "", linkLabel, linkLine, "", qrLabel, qrBlock, "", foot, "", wait)
+		}
 		return lipgloss.JoinVertical(lipgloss.Left, top, "", box, "", linkLabel, linkLine, "", foot, "", wait)
 
 	case stateError:

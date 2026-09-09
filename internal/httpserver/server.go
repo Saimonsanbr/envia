@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"envia/internal/qr"
 )
 
 // Server serves a single file.
@@ -131,6 +133,7 @@ func (s *Server) Listen() (string, error) {
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("/preview", s.handlePreview)
 	mux.HandleFunc("/download", s.handleDownload)
+	mux.HandleFunc("/qr", s.handleQR)
 	mux.HandleFunc("/preview.css", s.handleCSS)
 	mux.HandleFunc("/app.js", s.handleJS)
 
@@ -335,7 +338,44 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("/preview", s.handlePreview)
 	mux.HandleFunc("/download", s.handleDownload)
+	mux.HandleFunc("/qr", s.handleQR)
 	mux.HandleFunc("/preview.css", s.handleCSS)
 	mux.HandleFunc("/app.js", s.handleJS)
 	return securityHeaders(mux)
+}
+
+func (s *Server) handleQR(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/qr" {
+		http.NotFound(w, r)
+		return
+	}
+	// Gera QR para a URL pública atual (Host header)
+	// Para bore: http://bore.pub:PORT, para serveo/lhr/cloudflare: https://host
+	scheme := "https"
+	if strings.Contains(r.Host, "bore.pub") {
+		scheme = "http"
+	}
+	// Se X-Forwarded-Proto estiver setado (cloudflared), respeita
+	if fwd := r.Header.Get("X-Forwarded-Proto"); fwd != "" {
+		scheme = fwd
+	} else if r.TLS != nil {
+		scheme = "https"
+	}
+	// Se host é local (127.0.0.1), usa http
+	if strings.HasPrefix(r.Host, "127.0.0.1") || strings.HasPrefix(r.Host, "localhost") {
+		scheme = "http"
+	}
+	publicURL := scheme + "://" + r.Host + "/"
+	// Permite ?url= override para testes
+	if q := r.URL.Query().Get("url"); q != "" {
+		publicURL = q
+	}
+	png, err := qr.GeneratePNG(publicURL)
+	if err != nil || len(png) == 0 {
+		http.Error(w, "erro ao gerar QR", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "no-cache")
+	_, _ = w.Write(png)
 }
