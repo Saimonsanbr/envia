@@ -54,15 +54,20 @@ choose_install_dir() {
   fi
 }
 
-# Verifica cloudflared (aviso, não instala)
-check_cloudflared() {
-  if command -v cloudflared >/dev/null 2>&1; then
-    info "cloudflared encontrado: $(cloudflared --version 2>&1 | head -1)"
+# Verifica provider (bore é padrão agora)
+check_provider() {
+  if command -v bore >/dev/null 2>&1; then
+    info "bore encontrado: $(bore --version 2>&1 | head -1)"
   else
-    warn "cloudflared não encontrado. Instale para usar o provider padrão:"
-    echo "      brew install cloudflared"
-    echo "      # ou https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
-    echo "      # alternativa: cargo install bore-cli (provider bore)"
+    warn "bore não encontrado. Instale o provider padrão:"
+    echo "      cargo install bore-cli"
+    echo "      # ou brew install bore"
+    echo "      # https://github.com/ekzhang/bore"
+  fi
+  if command -v cloudflared >/dev/null 2>&1; then
+    info "cloudflared encontrado (fallback): $(cloudflared --version 2>&1 | head -1)"
+  else
+    warn "cloudflared não encontrado (opcional, fallback): brew install cloudflared"
   fi
 }
 
@@ -134,7 +139,7 @@ main() {
     info "$("$DST" --version)"
   fi
 
-  check_cloudflared
+  check_provider
 
   echo ""
   info "Pronto! Teste:"

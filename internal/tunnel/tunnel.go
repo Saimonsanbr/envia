@@ -72,8 +72,8 @@ func (m *Manager) Start(ctx context.Context, cfg Config) (string, error) {
 }
 
 // StartWithRetry starts tunnel with health validation and quick retries.
-// Para auto: 3 tentativas cloudflare (health 2.2s cada) depois fallback bore.
-// Para cloudflare explícito: 3 tentativas. Timeouts curtos pois retry subsequente já resolve DNS.
+// Para auto: agora bore é primário (instantâneo) com 3 tentativas, cloudflare desabilitado temporariamente.
+// Para cloudflare explícito: ainda funciona com 3 tentativas + health, mas não é usado em auto.
 func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error) {
 	provider := cfg.Provider
 	if provider == "" {
@@ -86,45 +86,44 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 			if ctx.Err() != nil {
 				return "", ctx.Err()
 			}
-			url, err := m.startCloudflare(ctx, cfg.Addr)
-			if err != nil {
-				lastErr = err
-				if strings.Contains(err.Error(), "não encontrado") {
-					break
-				}
-				select {
-				case <-time.After(100 * time.Millisecond):
-				case <-ctx.Done():
-					return "", ctx.Err()
-				}
-				continue
-			}
-			m.provider = ProviderCloudflare
-			m.url = url
-			if err := waitHealthy(ctx, url); err == nil {
+			url, err := m.startBore(ctx, cfg.Addr)
+			if err == nil {
+				m.provider = ProviderBore
+				m.url = url
 				return url, nil
-			} else {
-				lastErr = err
-				_ = m.Close()
-				select {
-				case <-time.After(100 * time.Millisecond):
-				case <-ctx.Done():
-					return "", ctx.Err()
-				}
-				continue
+			}
+			lastErr = err
+			if strings.Contains(err.Error(), "não encontrado") {
+				// bore não instalado, tenta cloudflare como último recurso
+				break
+			}
+			select {
+			case <-time.After(200 * time.Millisecond):
+			case <-ctx.Done():
+				return "", ctx.Err()
 			}
 		}
-		if ctx.Err() != nil {
-			return "", ctx.Err()
+		// Se bore falhou por não estar instalado, tenta cloudflare como fallback
+		if lastErr != nil && strings.Contains(lastErr.Error(), "não encontrado") {
+			for i := 0; i < 2; i++ {
+				url, err := m.startCloudflare(ctx, cfg.Addr)
+				if err == nil {
+					m.provider = ProviderCloudflare
+					m.url = url
+					if err := waitHealthy(ctx, url); err == nil {
+						return url, nil
+					}
+					lastErr = err
+					_ = m.Close()
+					continue
+				}
+				lastErr = err
+			}
 		}
-		// fallback bore (sem health, bore é rápido)
-		url2, err2 := m.startBore(ctx, cfg.Addr)
-		if err2 == nil {
-			m.provider = ProviderBore
-			m.url = url2
-			return url2, nil
+		if lastErr == nil {
+			lastErr = fmt.Errorf("bore não respondeu")
 		}
-		return "", fmt.Errorf("não foi possível criar um túnel público.\nVerifique se cloudflared ou bore está instalado e se sua conexão com a internet está funcionando: %v; bore: %v", lastErr, err2)
+		return "", fmt.Errorf("não foi possível criar túnel bore após 3 tentativas: %v\nInstale bore (cargo install bore-cli) ou use --provider cloudflare", lastErr)
 	}
 
 	if provider == ProviderCloudflare {
@@ -161,13 +160,25 @@ func (m *Manager) StartWithRetry(ctx context.Context, cfg Config) (string, error
 	}
 
 	if provider == ProviderBore {
-		url, err := m.startBore(ctx, cfg.Addr)
-		if err != nil {
-			return "", err
+		var lastErr error
+		for i := 0; i < 3; i++ {
+			url, err := m.startBore(ctx, cfg.Addr)
+			if err == nil {
+				m.provider = ProviderBore
+				m.url = url
+				return url, nil
+			}
+			lastErr = err
+			if strings.Contains(err.Error(), "não encontrado") {
+				return "", err
+			}
+			select {
+			case <-time.After(200 * time.Millisecond):
+			case <-ctx.Done():
+				return "", ctx.Err()
+			}
 		}
-		m.provider = ProviderBore
-		m.url = url
-		return url, nil
+		return "", fmt.Errorf("bore indisponível após 3 tentativas: %v", lastErr)
 	}
 
 	return "", fmt.Errorf("provider desconhecido: %s", provider)

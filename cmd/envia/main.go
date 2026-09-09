@@ -22,7 +22,7 @@ func main() {
 		configFlag   string
 	)
 
-	flag.StringVar(&providerFlag, "provider", "auto", "provider de túnel: auto, cloudflare, bore")
+	flag.StringVar(&providerFlag, "provider", "auto", "provider de túnel: auto (bore, fallback cloudflare), cloudflare, bore")
 	flag.StringVar(&configFlag, "config", "", "configuração: ocultos (alterna exibição de arquivos ocultos)")
 	flag.BoolVar(&showVersion, "version", false, "mostra versão")
 	flag.BoolVar(&showVersion, "v", false, "mostra versão (alias)")

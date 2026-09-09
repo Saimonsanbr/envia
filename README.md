@@ -121,15 +121,7 @@ make build  # gera bin/envia
 
 O `envia` **não instala** `cloudflared`/`bore` — você instala uma vez:
 
-**Cloudflare (recomendado, padrão):**
-
-```bash
-brew install cloudflared
-# https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
-cloudflared --version
-```
-
-**Bore (fallback):**
+**Bore (padrão atual — instantâneo, recomendado):**
 
 ```bash
 cargo install bore-cli
@@ -138,7 +130,15 @@ brew install bore
 bore --version
 ```
 
-O modo `--provider auto` (padrão) tenta `cloudflared` primeiro e só usa `bore` se precisar.
+**Cloudflare (fallback/alternativo):**
+
+```bash
+brew install cloudflared
+# https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
+cloudflared --version
+```
+
+O modo `--provider auto` (padrão) agora tenta `bore` primeiro (praticamente instantâneo, 2-4s). Se `bore` não estiver instalado, tenta `cloudflare` como fallback. Use `--provider cloudflare` se preferir Cloudflare explicitamente. Outros similares como `serveo.net` (`ssh -R 80:localhost:PORT serveo.net`) e `localhost.run` podem ser adicionados como fallback futuro.
 
 ---
 
@@ -195,9 +195,9 @@ Aguardando downloads... • Ctrl+C para encerrar
 1. Você escolhe um arquivo (argumento ou seletor).
 2. O `envia` valida se é arquivo (não diretório) e pega tamanho.
 3. Abre um HTTP server só em `127.0.0.1` com porta que o sistema escolhe.
-4. Chama `cloudflared tunnel --url http://127.0.0.1:PORTA` (ou `bore local PORT --to bore.pub`).
-5. Lê a saída do processo e captura a URL (`https://*.trycloudflare.com` ou `bore.pub:PORT`).
-6. Valida a URL com um `GET /` rápido (retry transparente de até 5 tentativas, poucos segundos cada). Se Cloudflare falhar, tenta novo túnel; se 5 falharem, cai pro `bore`.
+4. Chama `bore local PORT --to bore.pub` (padrão, instantâneo, 2-4s) ou `cloudflared tunnel --url http://127.0.0.1:PORTA` se `--provider cloudflare`.
+5. Lê a saída do processo e captura a URL (`bore.pub:PORT` ou `https://*.trycloudflare.com`).
+6. Para `bore`, retorna imediatamente (sem health); para `cloudflare`, valida com `GET /` rápido (retry de até 3 tentativas, 2.5s cada, com `LookupIP` fail-fast). Se `bore` falhar, tenta `cloudflare` como último recurso quando em `auto`.
 7. Mostra o link com spinner `bubbles/spinner` durante a criação.
 8. Serve o arquivo com streaming e fica esperando até `Ctrl+C`.
 
@@ -222,10 +222,10 @@ Enquanto o spinner gira, você só vê “Criando link…” — o retry de DNS 
 - Preview: `image` → `<img>`, `video` → `<video controls>`, `audio` → `<audio>`, `pdf` → `<iframe>`, fallback genérico. CSS puro com `prefers-color-scheme` (claro/escuro), 100% offline (sem CDN).
 
 **Túnel (`os/exec`):**
-- `exec.LookPath` verifica `cloudflared`/`bore` no `PATH`.
+- `exec.LookPath` verifica `bore`/`cloudflared` no `PATH` (`bore` é padrão agora, `cloudflared` só se `--provider cloudflare`).
 - `exec.CommandContext` com `signal.NotifyContext` para matar filhos no `Ctrl+C`.
-- Regex `https://[a-zA-Z0-9-]+\.trycloudflare\.com` e `bore\.pub:(\d+)` com strip de ANSI.
-- Timeout 20s para URL + health 4s (`GET /` com `http.Client{Timeout:3s}`) por tentativa.
+- Regex `bore\.pub:(\d+)` e `https://[a-zA-Z0-9-]+\.trycloudflare\.com` com strip de ANSI.
+- `bore`: `12s` para URL, sem health (instantâneo, 3 retries com `100ms` gap). `cloudflare`: `15s` para URL + health `2.5s` (`LookupIP` fail-fast + `GET` com `Timeout 1.5s`) por tentativa, 3 tentativas.
 
 **UI (`charmbracelet/bubbletea` + `bubbles`):**
 - Modelo com estados `picking → loading → ready`. `list` para arquivos, `spinner.Dot` para carregando.
