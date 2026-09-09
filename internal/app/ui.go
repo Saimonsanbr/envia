@@ -244,7 +244,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m appModel) View() string {
 	switch m.state {
 	case statePicking:
-		header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Render("envia v0.2.1")
+		header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Render("envia v0.2.3")
 		sub := lipgloss.NewStyle().Faint(true).Render("Compartilhe um arquivo diretamente do seu computador.")
 		by := lipgloss.NewStyle().Faint(true).Render("by @indigena.dev")
 		top := lipgloss.JoinVertical(lipgloss.Center, header, sub, by)
@@ -253,7 +253,7 @@ func (m appModel) View() string {
 
 	case stateLoading:
 		// Header same as picking for consistency
-		header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Render("envia v0.2.1")
+		header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Render("envia v0.2.3")
 		sub := lipgloss.NewStyle().Faint(true).Render("Compartilhe um arquivo diretamente do seu computador.")
 		by := lipgloss.NewStyle().Faint(true).Render("by @indigena.dev")
 		top := lipgloss.JoinVertical(lipgloss.Center, header, sub, by)
@@ -275,7 +275,7 @@ func (m appModel) View() string {
 		return lipgloss.JoinVertical(lipgloss.Left, top, "", fileBox, "", loading, hint)
 
 	case stateReady:
-		header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Render("envia v0.2.1")
+		header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Render("envia v0.2.3")
 		sub := lipgloss.NewStyle().Faint(true).Render("Compartilhe um arquivo diretamente do seu computador.")
 		by := lipgloss.NewStyle().Faint(true).Render("by @indigena.dev")
 		top := lipgloss.JoinVertical(lipgloss.Center, header, sub, by)
@@ -308,12 +308,13 @@ func (m appModel) View() string {
 		linkLabel := lipgloss.NewStyle().Bold(true).Render("Link público")
 		linkStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true).Underline(true)
 		linkLine := linkStyle.Render(m.publicURL)
-		// QR code cacheado (gerado em Update, <5ms) abaixo do link
+		// QR compacto cacheado (<5ms) — sem borda grande, só QR puro
 		qrBlock := ""
 		if m.qrASCII != "" {
-			qrStyle := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("240")).Padding(0, 1)
-			if m.width == 0 || m.width >= 50 {
-				qrBlock = qrStyle.Render(m.qrASCII)
+			// QR tem ~30 cols, mostra se terminal tiver pelo menos 35 cols
+			if m.width == 0 || m.width >= 35 {
+				// Sem borda grande, só o QR com leve margem
+				qrBlock = lipgloss.NewStyle().MarginLeft(2).Render(m.qrASCII)
 			}
 		}
 		qrLabel := lipgloss.NewStyle().Faint(true).Render("QR code — escaneie no celular:")

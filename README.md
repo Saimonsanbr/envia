@@ -1,4 +1,4 @@
-# envia v0.2.1
+# envia v0.2.3
 
 > **Compartilhe um arquivo sem nuvem — seu PC vira servidor temporário via bore. Um comando, um link.**
 
@@ -327,9 +327,13 @@ Stack: Go 1.23+, `bubbletea` + `bubbles` + `lipgloss`, stdlib `net/http`, `embed
 
 **v0.1.0:** 1 arquivo, preview, download, Range, Cloudflare+Bore, UI spinner, retry de DNS.
 
-**v0.2.0 (atual):** bore como padrão instantâneo (bundle MIT), fallback serveo/localhost.run via ssh, link fora da box para copiar em terminal estreito, config `provider` avançado, validação 2.5s com retry rápido.
+**v0.2.0:** bore como padrão instantâneo (bundle MIT), fallback serveo/localhost.run via ssh, link fora da box.
 
-**v0.3:** múltiplos arquivos, ZIP automático, QR code, seleção múltipla.
+**v0.2.1:** QR code no terminal e na página (`/qr`).
+
+**v0.2.3 (atual):** QR compacto (~13 linhas) para não esconder o link em terminal estreito, `bore` bundle e `serveo`/`lhr` rápidos.
+
+**v0.3:** múltiplos arquivos, ZIP automático, seleção múltipla.
 
 **Futuro:** rendezvous server opcional, senha, expiração, P2P, providers extras.
 

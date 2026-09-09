@@ -6,31 +6,44 @@ import (
 	"github.com/skip2/go-qrcode"
 )
 
-// GenerateASCII creates a small ASCII QR code for terminal.
-// Uses block characters and is fast (<5ms for URL ~50 chars).
+// GenerateASCII creates a compact ASCII QR code for terminal (<15 linhas, ~30 colunas).
+// Usa half-blocks (▀▄█ ) para representar 2 módulos por linha, sem borda extra.
 func GenerateASCII(url string) string {
 	if url == "" {
 		return ""
 	}
-	qr, err := qrcode.New(url, qrcode.Medium)
+	// Low recovery deixa QR menor para URLs curtas (~25x25)
+	qr, err := qrcode.New(url, qrcode.Low)
 	if err != nil {
 		return ""
 	}
 	bitmap := qr.Bitmap()
+	// bitmap é quadrado, sem quiet zone extra - qrcode já inclui 4 módulos de borda
 	var sb strings.Builder
-	sb.WriteString(strings.Repeat("  ", len(bitmap[0])+2) + "\n")
-	for _, row := range bitmap {
-		sb.WriteString("  ")
-		for _, col := range row {
-			if col {
-				sb.WriteString("██")
-			} else {
-				sb.WriteString("  ")
+	// Renderiza 2 linhas do QR por 1 linha do terminal usando half-blocks
+	for y := 0; y < len(bitmap); y += 2 {
+		for _, row := range [][]bool{bitmap[y]} {
+			_ = row
+		}
+		for x := 0; x < len(bitmap[0]); x++ {
+			top := bitmap[y][x]
+			bottom := false
+			if y+1 < len(bitmap) {
+				bottom = bitmap[y+1][x]
+			}
+			switch {
+			case top && bottom:
+				sb.WriteString("█")
+			case top && !bottom:
+				sb.WriteString("▀")
+			case !top && bottom:
+				sb.WriteString("▄")
+			default:
+				sb.WriteString(" ")
 			}
 		}
-		sb.WriteString("  \n")
+		sb.WriteString("\n")
 	}
-	sb.WriteString(strings.Repeat("  ", len(bitmap[0])+2) + "\n")
 	return sb.String()
 }
 
