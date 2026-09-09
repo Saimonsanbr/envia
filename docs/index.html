@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>envia — docs</title>
+<meta name="description" content="Compartilhe um arquivo sem nuvem — seu PC vira servidor temporário via bore. Um comando, um link.">
+<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <a href="#" data-md="content/introducao.md">envia</a>
+      <span class="version">v0.2.3</span>
+      <button id="theme-toggle" aria-label="Alternar tema">○</button>
+    </div>
+    <nav id="nav">
+      <a href="#" data-md="content/introducao.md" class="active">Introdução</a>
+      <a href="#" data-md="content/instalacao.md">Instalação</a>
+      <a href="#" data-md="content/uso.md">Uso</a>
+      <a href="#" data-md="content/como-funciona.md">Como funciona</a>
+      <a href="#" data-md="content/pagina.md">Página e preview</a>
+      <a href="#" data-md="content/configuracao.md">Configuração</a>
+      <a href="#" data-md="content/privacidade.md">Privacidade</a>
+      <a href="#" data-md="content/desenvolvimento.md">Desenvolvimento</a>
+    </nav>
+    <div class="sidebar-foot">
+      <a href="https://github.com/Saimonsanbr/envia" target="_blank" rel="noopener">GitHub</a>
+      <span>·</span>
+      <a href="https://github.com/Saimonsanbr/envia/releases" target="_blank" rel="noopener">Releases</a>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+  <main class="main">
+    <button class="menu-btn" id="menu-btn" aria-label="Menu">☰</button>
+    <article id="content" class="content">
+      <p>Carregando...</p>
+    </article>
+    <footer class="foot">
+      <span>envia — sem nuvem, só link. MIT · <a href="https://github.com/Saimonsanbr/envia">Saimonsanbr/envia</a></span>
+    </footer>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

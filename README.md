@@ -5,23 +5,26 @@
 [![Go Version](https://img.shields.io/badge/go-1.23+-00ADD8?logo=go)](https://go.dev)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/Saimonsanbr/envia)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-7c5cfc)](https://saimonsanbr.github.io/envia/)
 
 ```bash
 envia video.mp4
-# → https://xxxxx.trycloudflare.com
+# → http://bore.pub:12345
 ```
 
 Quem recebe só abre o link no navegador — sem cadastro, sem app, sem upload pra nuvem do `envia`.
+
+> **Documentação completa:** https://saimonsanbr.github.io/envia/ — com guias por capítulo em markdown, dark mode e exemplos de código.
 
 ---
 
 ## Aviso — projeto entusiasta em desenvolvimento
 
-O `envia` é um projeto **entusiasta, feito no tempo livre**. Ele funciona, mas ainda pode ter bugs, arestas e comportamentos inesperados — principalmente fora do ambiente onde foi testado.
+O `envia` é um projeto **entusiasta, feito no tempo livre**. Ele funciona, mas ainda pode ter bugs, arestas e comportamentos inesperados.
 
-- **Testado apenas em macOS com Apple Silicon (M1)** até agora.
-- **Não testado ainda em Linux e Windows** — builds para essas plataformas estão no roadmap e devem sair nas próximas releases. Se você testar, conta pra gente como foi!
-- A ideia é manter tudo **simples, rápido e sem cadastro**, mas a v0.2.0 ainda é um MVP de um único arquivo por vez.
+- **Testado em macOS (M1) e Linux** — ambos funcionando perfeitamente com `bore` (instantâneo).
+- **Windows será testado em breve** com `bore.exe` bundle.
+- A ideia é manter tudo **simples, rápido e sem cadastro**, mas a v0.2.3 ainda é um MVP de um único arquivo por vez.
 
 Se encontrar algo estranho, abre uma issue. Toda ajuda é bem-vinda — e obrigado por testar tão cedo!
 
@@ -349,8 +352,10 @@ Stack: Go 1.23+, `bubbletea` + `bubbles` + `lipgloss`, stdlib `net/http`, `embed
 ## Requisitos
 
 - Go 1.23+
-- `cloudflared` **ou** `bore` no `PATH`
-- Testado em **macOS M1**; Linux/Windows em breve (arm64/amd64, `CGO_ENABLED=0`)
+- `bore` **ou** `ssh` (para `serveo`/`lhr`) **ou** `cloudflared` no `PATH` — mas o `envia` já inclui `bore` bundle, então normalmente não precisa instalar
+- Testado em **macOS M1 e Linux** (amd64/arm64, `CGO_ENABLED=0`); Windows com `bore.exe` bundle em breve
+
+Documentação completa com guias por capítulo: **https://saimonsanbr.github.io/envia/**
 
 ---
 
