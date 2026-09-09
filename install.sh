@@ -54,20 +54,68 @@ choose_install_dir() {
   fi
 }
 
-# Verifica provider (bore é padrão agora)
+# Verifica provider (bore é padrão agora, já vem bundle)
 check_provider() {
+  # bore pode estar no PATH ou ao lado do envia (bundle)
   if command -v bore >/dev/null 2>&1; then
-    info "bore encontrado: $(bore --version 2>&1 | head -1)"
+    info "bore encontrado no PATH: $(bore --version 2>&1 | head -1)"
+  elif [ -x "$DST_DIR/bore" ] || [ -x "$DST_DIR/bore.exe" ]; then
+    info "bore bundle encontrado em $DST_DIR"
   else
-    warn "bore não encontrado. Instale o provider padrão:"
-    echo "      cargo install bore-cli"
-    echo "      # ou brew install bore"
-    echo "      # https://github.com/ekzhang/bore"
+    warn "bore não encontrado no PATH, mas o envia inclui bundle em third-party/bore/ (dev) e tenta baixar automaticamente."
+    echo "      Se o bundle falhar, instale manualmente:"
+    echo "        cargo install bore-cli  # ou brew install bore"
+    echo "        https://github.com/ekzhang/bore"
   fi
   if command -v cloudflared >/dev/null 2>&1; then
-    info "cloudflared encontrado (fallback): $(cloudflared --version 2>&1 | head -1)"
+    info "cloudflared encontrado (fallback avançado): $(cloudflared --version 2>&1 | head -1)"
+  fi
+}
+
+# Baixa bore bundle para o mesmo diretório do envia (se não existir no PATH)
+install_bore_bundle() {
+  # Só tenta se bore não estiver no PATH e não existir no destino
+  if command -v bore >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -x "$DST_DIR/bore" ] || [ -x "$DST_DIR/bore.exe" ]; then
+    return 0
+  fi
+  BORE_VERSION="v0.6.0"
+  case "$PLATFORM" in
+    darwin-arm64) BORE_ASSET="bore-v0.6.0-aarch64-apple-darwin.tar.gz" ;;
+    darwin-amd64) BORE_ASSET="bore-v0.6.0-x86_64-apple-darwin.tar.gz" ;;
+    linux-amd64) BORE_ASSET="bore-v0.6.0-x86_64-unknown-linux-musl.tar.gz" ;;
+    linux-arm64) BORE_ASSET="bore-v0.6.0-aarch64-unknown-linux-musl.tar.gz" ;;
+    *) return 0 ;; # Windows ou outros: não tenta bundle automático, deixa tutorial
+  esac
+  BORE_URL="https://github.com/ekzhang/bore/releases/download/${BORE_VERSION}/${BORE_ASSET}"
+  info "Baixando bore bundle $BORE_VERSION para $PLATFORM..."
+  echo "     $BORE_URL"
+  if command -v curl >/dev/null 2>&1; then
+    if ! curl -fsSL "$BORE_URL" -o "$TMP/bore.tar.gz"; then
+      warn "Falha ao baixar bore bundle, continue com bore do PATH se existir"
+      return 0
+    fi
+  elif command -v wget >/dev/null 2>&1; then
+    if ! wget -qO "$TMP/bore.tar.gz" "$BORE_URL"; then
+      warn "Falha ao baixar bore bundle"
+      return 0
+    fi
   else
-    warn "cloudflared não encontrado (opcional, fallback): brew install cloudflared"
+    return 0
+  fi
+  # extrai bore
+  if tar -xzf "$TMP/bore.tar.gz" -C "$TMP" 2>/dev/null && [ -f "$TMP/bore" ]; then
+    chmod +x "$TMP/bore"
+    if [ -w "$DST_DIR" ]; then
+      mv "$TMP/bore" "$DST_DIR/bore"
+    else
+      sudo mv "$TMP/bore" "$DST_DIR/bore" 2>/dev/null || mv "$TMP/bore" "$DST_DIR/bore"
+    fi
+    info "bore bundle instalado em $DST_DIR/bore"
+  else
+    warn "Falha ao extrair bore bundle"
   fi
 }
 
@@ -133,6 +181,9 @@ main() {
       echo "  ou use caminho completo: $DST"
       ;;
   esac
+
+  # tenta instalar bore bundle ao lado do envia (para funcionar sem cargo/brew)
+  install_bore_bundle || true
 
   # versão
   if "$DST" --version >/dev/null 2>&1; then
