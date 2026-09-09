@@ -9,7 +9,7 @@ import (
 
 // Config holds persistent settings.
 type Config struct {
-	ShowHidden bool   `json:"show_hidden"`
+	ShowHidden bool `json:"show_hidden"`
 	// Provider padrão quando --provider auto (vazio = bore). Avançado: "cloudflare" para usar cloudflared mesmo em auto.
 	// Permite que usuário com domínio próprio configure cloudflared como padrão editando o JSON.
 	Provider string `json:"provider,omitempty"`

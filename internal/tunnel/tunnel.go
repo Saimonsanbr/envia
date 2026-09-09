@@ -43,10 +43,10 @@ type Config struct {
 var (
 	cloudflareRegex = regexp.MustCompile(`https://[a-zA-Z0-9-]+\.trycloudflare\.com`)
 	// bore output contains "bore.pub:12345" - may have ansi codes
-	boreRegex = regexp.MustCompile(`bore\.pub:(\d+)`)
-	serveoRegex = regexp.MustCompile(`https://[a-zA-Z0-9-]+\.serveo\.net`)
+	boreRegex         = regexp.MustCompile(`bore\.pub:(\d+)`)
+	serveoRegex       = regexp.MustCompile(`https://[a-zA-Z0-9-]+\.serveo\.net`)
 	localhostRunRegex = regexp.MustCompile(`https://[a-zA-Z0-9-]+\.lhr\.life`)
-	ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	ansiRegex         = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 )
 
 // ParseCloudflareURL extracts trycloudflare URL from text.
@@ -280,7 +280,7 @@ func waitHealthy(ctx context.Context, publicURL string) error {
 		target += "/"
 	}
 	for time.Now().Before(deadline) {
-			if ctx.Err() != nil {
+		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 		req, err := http.NewRequestWithContext(context.Background(), "GET", target, nil)
@@ -292,7 +292,7 @@ func waitHealthy(ctx context.Context, publicURL string) error {
 			io.Copy(io.Discard, resp.Body)
 			resp.Body.Close()
 			if resp.StatusCode < 500 {
-					return nil
+				return nil
 			}
 		}
 		select {
@@ -301,7 +301,7 @@ func waitHealthy(ctx context.Context, publicURL string) error {
 			return ctx.Err()
 		}
 	}
-return fmt.Errorf("health check falhou para %s", publicURL)
+	return fmt.Errorf("health check falhou para %s", publicURL)
 }
 
 func (m *Manager) startCloudflare(ctx context.Context, addr string) (string, error) {
